@@ -141,6 +141,76 @@ class QAntPhotonicQubit(MinimalQubit):
         return self.apply_mzi(theta, phi)
 
 
+class QubitRegister:
+    """
+    QubitRegister: Simuliert ein N-Qubit Quantenregister.
+    Ermöglicht Mehr-Qubit-Verschränkung, Orakel-Gatter, Diffusions-Operatoren
+    und die Ausführung des Grover-Suchalgorithmus.
+    """
+    def __init__(self, num_qubits: int = 2):
+        self.num_qubits = num_qubits
+        self.dim = 2 ** num_qubits
+        # Startzustand |00...0>
+        self.state = np.zeros(self.dim, dtype=complex)
+        self.state[0] = 1.0 + 0j
+
+    @property
+    def statevector(self):
+        """Gibt den aktuellen 2^N komplexen Zustandsvektor zurück."""
+        return self.state
+
+    def h_all(self):
+        """Wendet das Hadamard-Gatter H^(otimes N) auf alle Qubits an (Superposition)."""
+        H1 = 1.0 / math.sqrt(2) * np.array([[1, 1], [1, -1]], dtype=complex)
+        HN = H1
+        for _ in range(self.num_qubits - 1):
+            HN = np.kron(HN, H1)
+        self.state = HN @ self.state
+        return self
+
+    def apply_oracle(self, target_index: int):
+        """
+        Orakel-Operator U_omega: Invertiert das Vorzeichen des Zielzustands |target_index>.
+        """
+        oracle_matrix = np.eye(self.dim, dtype=complex)
+        oracle_matrix[target_index, target_index] = -1.0 + 0j
+        self.state = oracle_matrix @ self.state
+        return self
+
+    def apply_diffuser(self):
+        """
+        Grover-Diffusor-Operator (Inversion um den Mittelwert): U_s = 2|s><s| - I.
+        """
+        s = np.ones(self.dim, dtype=complex) / math.sqrt(self.dim)
+        diffuser_matrix = 2.0 * np.outer(s, s.conj()) - np.eye(self.dim, dtype=complex)
+        self.state = diffuser_matrix @ self.state
+        return self
+
+    def grover_search(self, target_index: int, iterations: int = 1):
+        """
+        Führt den Grover-Algorithmus aus, um nach dem Zielzustand (target_index) zu suchen.
+        """
+        # 1. Gleichmäßige Superposition erzeugen
+        self.h_all()
+
+        # 2. Grover-Iterationen (Orakel + Diffusor)
+        for _ in range(iterations):
+            self.apply_oracle(target_index)
+            self.apply_diffuser()
+
+        return self
+
+    def measure(self):
+        """
+        Führt eine Quantenmessung durch und gibt den kollabierten Bitstring
+        sowie die Wahrscheinlichkeitsverteilung zurück.
+        """
+        probabilities = np.abs(self.state) ** 2
+        outcome_index = np.random.choice(self.dim, p=probabilities)
+        bitstring = format(outcome_index, f'0{self.num_qubits}b')
+        return bitstring, probabilities
+
+
 # --- Beispielnutzung ---
 if __name__ == "__main__":
     qubit = MinimalQubit()
@@ -149,5 +219,11 @@ if __name__ == "__main__":
     print("Dual-Rail Moden:", qubit.to_dual_rail_modes())
 
     qant_qubit = QAntPhotonicQubit(v_pi=3.3)
-    qant_qubit.apply_voltage_phase_shift(1.65) # V_pi/2 -> Phase pi/2
+    qant_qubit.apply_voltage_phase_shift(1.65)
     print("Q.Ant Photonic Qubit nach 1.65V Phase Shift:", qant_qubit.statevector)
+
+    # Grover-Algorithmus auf 2 Qubits (Suche nach |11> -> Index 3)
+    reg = QubitRegister(num_qubits=2)
+    reg.grover_search(target_index=3, iterations=1)
+    bitstring, probs = reg.measure()
+    print(f"Grover Suche nach Index 3 (|11>): Gemessen = {bitstring}, Wahrscheinlichkeiten = {probs}")

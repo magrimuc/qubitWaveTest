@@ -1,7 +1,7 @@
 import math
 import pytest
 import numpy as np
-from MinimalQubit import MinimalQubit, QAntPhotonicQubit
+from MinimalQubit import MinimalQubit, QAntPhotonicQubit, QubitRegister
 from qiskit.quantum_info import Statevector
 from qiskit.circuit.library import XGate
 
@@ -121,3 +121,23 @@ def test_qiskit_circuit_conversion(qubit):
     qubit.h()
     qc = qubit.to_qiskit_circuit()
     assert qc.num_qubits == 1
+
+# --- GROVER ALGORITHM TESTS ---
+
+@pytest.mark.parametrize("target_idx, expected_bitstring", [
+    (0, "00"),
+    (1, "01"),
+    (2, "10"),
+    (3, "11")
+])
+def test_grover_search_2qubit(target_idx, expected_bitstring):
+    """Testet den Grover-Algorithmus für alle 4 möglichen Zustände auf 2 Qubits."""
+    reg = QubitRegister(num_qubits=2)
+    reg.grover_search(target_index=target_idx, iterations=1)
+    
+    # Prüfe, dass die Wahrscheinlichkeit für das Ziel 100% (1.0) beträgt
+    probs = np.abs(reg.statevector) ** 2
+    assert probs[target_idx] == pytest.approx(1.0)
+    
+    bitstring, _ = reg.measure()
+    assert bitstring == expected_bitstring
