@@ -145,7 +145,7 @@ class QubitRegister:
     """
     QubitRegister: Simuliert ein N-Qubit Quantenregister.
     Ermöglicht Mehr-Qubit-Verschränkung, Orakel-Gatter, Diffusions-Operatoren
-    und die Ausführung des Grover-Suchalgorithmus.
+    und den Grover-Suchalgorithmus für beliebige Registergrößen (2, 3, 4, ..., N Qubits).
     """
     def __init__(self, num_qubits: int = 2):
         self.num_qubits = num_qubits
@@ -186,10 +186,14 @@ class QubitRegister:
         self.state = diffuser_matrix @ self.state
         return self
 
-    def grover_search(self, target_index: int, iterations: int = 1):
+    def grover_search(self, target_index: int, iterations: int = None):
         """
-        Führt den Grover-Algorithmus aus, um nach dem Zielzustand (target_index) zu suchen.
+        Führt den Grover-Algorithmus aus.
+        Wenn iterations=None ist, wird automatisch die optimale Iterationszahl k ~ pi/4 * sqrt(2^N) berechnet.
         """
+        if iterations is None:
+            iterations = max(1, int(math.floor(math.pi / 4.0 * math.sqrt(self.dim))))
+
         # 1. Gleichmäßige Superposition erzeugen
         self.h_all()
 
@@ -216,14 +220,9 @@ if __name__ == "__main__":
     qubit = MinimalQubit()
     qubit.h().z()
     print("Standard Qubit Zustandsvektor:", qubit.statevector)
-    print("Dual-Rail Moden:", qubit.to_dual_rail_modes())
 
-    qant_qubit = QAntPhotonicQubit(v_pi=3.3)
-    qant_qubit.apply_voltage_phase_shift(1.65)
-    print("Q.Ant Photonic Qubit nach 1.65V Phase Shift:", qant_qubit.statevector)
-
-    # Grover-Algorithmus auf 2 Qubits (Suche nach |11> -> Index 3)
-    reg = QubitRegister(num_qubits=2)
-    reg.grover_search(target_index=3, iterations=1)
-    bitstring, probs = reg.measure()
-    print(f"Grover Suche nach Index 3 (|11>): Gemessen = {bitstring}, Wahrscheinlichkeiten = {probs}")
+    # Grover-Suche auf 3 Qubits (8 Elemente: |000> bis |111>) nach Index 5 ("101")
+    reg3 = QubitRegister(num_qubits=3)
+    reg3.grover_search(target_index=5)
+    bitstring, probs = reg3.measure()
+    print(f"3-Qubit Grover Suche nach Index 5 ('101'): Gemessen = |{bitstring}>, Wahrscheinlichkeit = {probs[5]:.1%}")

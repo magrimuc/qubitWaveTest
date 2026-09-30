@@ -134,10 +134,17 @@ def test_grover_search_2qubit(target_idx, expected_bitstring):
     """Testet den Grover-Algorithmus für alle 4 möglichen Zustände auf 2 Qubits."""
     reg = QubitRegister(num_qubits=2)
     reg.grover_search(target_index=target_idx, iterations=1)
-    
-    # Prüfe, dass die Wahrscheinlichkeit für das Ziel 100% (1.0) beträgt
     probs = np.abs(reg.statevector) ** 2
     assert probs[target_idx] == pytest.approx(1.0)
-    
     bitstring, _ = reg.measure()
     assert bitstring == expected_bitstring
+
+def test_grover_search_3qubit():
+    """Testet den Grover-Algorithmus auf 3 Qubits (8 Elemente, Ziel = Index 5 '101')."""
+    reg = QubitRegister(num_qubits=3)
+    reg.grover_search(target_index=5)  # Automatische optimal 2 Iterationen
+    probs = np.abs(reg.statevector) ** 2
+    # Für N=3 liegt die Wahrscheinlichkeit für das Ziel bei ca. 94.5%
+    assert probs[5] > 0.90
+    bitstring, _ = reg.measure()
+    assert bitstring == "101"
